@@ -1,0 +1,210 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: newsfeed-svc-token
+type: Opaque
+data:
+  token: VDEmZVdiWVhOV0cxdzFeWUdLRFB4QVdKQF5ldF4ma1g=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quotes
+spec:
+  selector:
+    matchLabels:
+      app: quotes
+      tier: backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: quotes
+        tier: backend
+    spec:
+      containers:
+      - name: quotes
+        image: pravrang/quotes:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: APP_PORT
+          value: '8080'
+        ports:
+        - name: http
+          containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quotes
+  labels:
+    app: quotes
+    tier: backend
+spec:
+  type: NodePort
+  ports:
+    # the port that this service should serve on
+  - name: http
+    port: 80
+    targetPort: http
+  selector:
+    app: quotes
+    tier: backend
+#Newsfeed deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: newsfeed
+spec:
+  selector:
+    matchLabels:
+      app: newsfeed
+      tier: backend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: newsfeed
+        tier: backend
+    spec:
+      containers:
+      - name: newfeed
+        image: pravrang/newsfeed:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: APP_PORT
+          value: '8080'
+        ports:
+        - name: http
+          containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: newsfeed
+  labels:
+    app: newsfeed
+    tier: backend
+spec:
+  type: NodePort
+  ports:
+    # the port that this service should serve on
+  - name: http
+    port: 80
+    targetPort: http
+  selector:
+    app: newsfeed
+    tier: backend 
+#front-end-static deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-end-static
+spec:
+  selector:
+    matchLabels:
+      app: front-end-static
+      tier: frontend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: front-end-static
+        tier: frontend
+    spec:
+      containers:
+      - name: front-end-static
+        image: pravrang/front-end-static:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - name: http
+          containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-end-static
+  labels:
+    app: front-end-static
+    tier: frontend
+spec:
+  type: NodePort
+  ports:
+    # the port that this service should serve on
+  - name: http
+    port: 80
+    targetPort: http
+  selector:
+    app: front-end-static
+    tier: frontend
+#front-end deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-end
+spec:
+  selector:
+    matchLabels:
+      app: front-end
+      tier: frontend
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: front-end
+        tier: frontend
+    spec:
+      containers:
+      - name: front-end
+        image: pravrang/front-end:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: APP_PORT
+          value: '8080'
+        - name: STATIC_URL
+          value: front-end-static
+        - name: QUOTE_SERVICE_URL
+          value: quotes
+        - name: NEWSFEED_SERVICE_URL
+          value: newsfeed
+        - name: NEWSFEED_SERVICE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: newsfeed-svc-token
+              key: token
+        ports:
+        - name: http
+          containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-end
+  labels:
+    app: front-end
+    tier: frontend
+spec:
+  type: LoadBalancer
+  ports:
+    # the port that this service should serve on
+  - name: http
+    port: 80
+    targetPort: http
+  selector:
+    app: front-end
+    tier: frontend 
